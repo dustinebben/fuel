@@ -22,7 +22,12 @@ export function SignInScreen() {
     // setting is the actual lock; this flag alone doesn't stop new accounts.
     const { error } = await supabase.auth.signInWithOtp({
       email: value.trim(),
-      options: { shouldCreateUser: true },
+      // Without this, the magic link always points at whatever "Site URL" happens to
+      // be configured in the Supabase dashboard, regardless of where the request came
+      // from — so a link requested from the live pages.dev URL could silently redirect
+      // to localhost (or wherever Site URL is set) instead. Send it back to wherever
+      // this request is actually being made from.
+      options: { shouldCreateUser: true, emailRedirectTo: window.location.origin },
     })
     setBusy(false)
     if (error) {
