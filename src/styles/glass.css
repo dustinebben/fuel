@@ -1,0 +1,153 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: oklch(0.15 0.02 265);
+  --color-bg-elevated: oklch(0.19 0.03 265);
+
+  --glass-tint: oklch(1 0 0 / 0.075);
+  --glass-tint-strong: oklch(1 0 0 / 0.12);
+  --glass-blur: 22px;
+  --glass-saturate: 180%;
+
+  --color-accent: oklch(0.7 0.18 285);
+  --color-good: oklch(0.82 0.16 165);
+  --color-warn: oklch(0.82 0.16 80);
+  --color-bad: oklch(0.68 0.2 25);
+
+  --radius-card: 26px;
+  --radius-tile: 22px;
+  --radius-sheet: 38px;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: var(--color-bg);
+}
+
+body {
+  background: transparent;
+  color: white;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family:
+    -apple-system,
+    'SF Pro Display',
+    system-ui,
+    sans-serif;
+}
+
+* {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Background: slow-drifting radial gradient blobs. Glass has nothing to refract
+   without colour behind it — see CLAUDE.md §8. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -25%;
+  background:
+    radial-gradient(22rem 22rem at 18% 10%, oklch(0.55 0.22 275 / 0.42), transparent 62%),
+    radial-gradient(20rem 20rem at 88% 72%, oklch(0.62 0.16 195 / 0.34), transparent 62%),
+    radial-gradient(18rem 18rem at 55% 44%, oklch(0.58 0.21 330 / 0.26), transparent 65%);
+  filter: blur(34px);
+  animation: drift 26s cubic-bezier(0.32, 0.72, 0, 1) infinite alternate;
+  z-index: -1;
+  pointer-events: none;
+}
+
+@keyframes drift {
+  to {
+    transform: translate3d(-5%, 4%, 0) scale(1.14) rotate(7deg);
+  }
+}
+
+/* @layer components: Tailwind v4 puts every utility class (.fixed, .relative,
+   .right-4, .z-30, ...) inside its own cascade layer. Unlayered CSS always beats
+   layered CSS regardless of source order or specificity — so without this @layer
+   wrapper, .glass's `position: relative` silently overrode `.fixed` on every
+   className="glass fixed ..." element (FAB, GlassSheet, GlassTabBar), collapsing
+   them into normal document flow instead of pinning them to the viewport. */
+@layer components {
+  .glass {
+    position: relative;
+    /* A dark scrim under the tint keeps text legible over the brightest part of the
+       background gradient (see CLAUDE.md accessibility rule) without losing the
+       colour-pull-through that makes this read as glass rather than a grey box. */
+    background:
+      linear-gradient(oklch(0.15 0.02 265 / 0.55), oklch(0.15 0.02 265 / 0.55)),
+      var(--glass-tint);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-radius: var(--radius-card);
+    border: 1px solid transparent;
+    box-shadow:
+      0 1px 0 0 oklch(1 0 0 / 0.16) inset,
+      0 -1px 0 0 oklch(0 0 0 / 0.22) inset,
+      0 12px 34px -10px oklch(0 0 0 / 0.5),
+      0 2px 8px -2px oklch(0 0 0 / 0.3);
+  }
+
+  .glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      var(--tilt-angle, 145deg),
+      oklch(1 0 0 / 0.45) 0%,
+      oklch(1 0 0 / 0.08) 32%,
+      oklch(1 0 0 / 0.02) 58%,
+      oklch(1 0 0 / 0.22) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .glass-chip {
+    position: relative;
+    background:
+      linear-gradient(oklch(0.15 0.02 265 / 0.55), oklch(0.15 0.02 265 / 0.55)),
+      var(--glass-tint-strong);
+    backdrop-filter: blur(14px) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(14px) saturate(var(--glass-saturate));
+    border-radius: 999px;
+    box-shadow: 0 4px 14px -6px oklch(0 0 0 / 0.4);
+  }
+}
+
+/* Reduced-transparency / reduced-motion: swap glass for a solid surface, layout
+   must not shift, and drift/count-up/stagger all disable. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-chip {
+    background: var(--color-bg-elevated);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid oklch(1 0 0 / 0.12);
+  }
+  .glass::before {
+    display: none;
+  }
+  body::before {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
