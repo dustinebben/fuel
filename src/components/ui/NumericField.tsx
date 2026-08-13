@@ -9,6 +9,17 @@ interface NumericFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   hint?: string
 }
 
+// Some devices' decimal-optimized keyboard emits ',' instead of '.' depending on
+// locale (relevant here specifically, since en-ZA itself uses ',' as the decimal
+// separator — see format.ts). Accept either, normalize to '.', and keep only the
+// first one so the field can't end up unparseable like "12.3.4".
+export function sanitizeDecimalInput(raw: string): string {
+  const cleaned = raw.replace(/,/g, '.').replace(/[^0-9.]/g, '')
+  const firstDot = cleaned.indexOf('.')
+  if (firstDot === -1) return cleaned
+  return cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '')
+}
+
 // type="number" is banned on iOS: it brings the wrong keyboard and an accidental
 // scroll can change the value. Every numeric field in this app is text + decimal.
 export function NumericField({ label, suffix, value, onChange, error, hint, id, ...props }: NumericFieldProps) {
@@ -22,7 +33,7 @@ export function NumericField({ label, suffix, value, onChange, error, hint, id, 
           type="text"
           inputMode="decimal"
           value={value}
-          onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ''))}
+          onChange={(e) => onChange(sanitizeDecimalInput(e.target.value))}
           className="w-full bg-transparent text-lg text-white placeholder:text-white/25 focus:outline-none"
           style={{ fontVariantNumeric: 'tabular-nums' }}
           {...props}
