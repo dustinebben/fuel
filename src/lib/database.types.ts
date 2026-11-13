@@ -1,5 +1,6 @@
-// Generated from the live Supabase project ("Project Fuel") via
-//   supabase gen types typescript --project-id vejtwljsbdrdqpvfjgxi
+// Originally generated from the old Supabase project; the schema is unchanged on Neon
+// (db/migrations/). Regenerate from the Neon Data API when it changes — see
+// https://neon.com/docs/data-api/generate-types
 // `fuel_type` / `price_zone` are narrowed from the generated `string` to the literal
 // unions below — Postgres CHECK constraints aren't reflected in generated types, but
 // the app depends on the narrower type everywhere it branches on fuel/zone. Re-narrow
@@ -103,21 +104,6 @@ export interface Database {
         }
         Relationships: []
       }
-      keepalive: {
-        Row: {
-          id: number
-          pinged_at: string
-        }
-        Insert: {
-          id?: number
-          pinged_at?: string
-        }
-        Update: {
-          id?: number
-          pinged_at?: string
-        }
-        Relationships: []
-      }
       vehicles: {
         Row: {
           created_at: string
@@ -168,7 +154,7 @@ export interface Database {
         // straight `select f.*, ...` over `fill_ups` partitioned by window functions —
         // every base column is exactly as present/absent as it is on the underlying
         // NOT NULL fill_ups row. Only the window-derived columns are genuinely nullable
-        // (see supabase/migrations/0003_enriched_view.sql).
+        // (see db/migrations/0003_enriched_view.sql).
         Row: Database['public']['Tables']['fill_ups']['Row'] & {
           prev_odometer_km: number | null
           prev_is_full: boolean | null

@@ -29,10 +29,10 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.hostname.endsWith('.supabase.co'),
+            urlPattern: ({ url }) => url.hostname.endsWith('.neon.tech'),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'supabase-api',
+              cacheName: 'neon-api',
               networkTimeoutSeconds: 8,
               cacheableResponse: { statuses: [0, 200] },
             },

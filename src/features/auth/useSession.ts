@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react'
-import type { Session } from '@supabase/supabase-js'
-import { supabase } from '../../lib/supabase'
+import { db } from '../../lib/db'
+
+export type Session = NonNullable<Awaited<ReturnType<typeof db.auth.getSession>>['data']['session']>
 
 export function useSession(): { session: Session | null; loading: boolean } {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    db.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setLoading(false)
     })
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: subscription } = db.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
     })
 

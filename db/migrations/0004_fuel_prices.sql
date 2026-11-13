@@ -20,7 +20,9 @@ alter table fuel_prices enable row level security;
 -- Reference data, not user data: any authenticated user may read it, nobody may write
 -- it from the client (updated manually via migration or dashboard SQL editor).
 create policy "read fuel prices" on fuel_prices
-  for select using (auth.role() = 'authenticated');
+  for select to authenticated using (true);
+
+grant select on fuel_prices to authenticated;
 
 -- Seed with the July 2026 prices quoted in the spec, so the app has something to show
 -- before the first manual update.

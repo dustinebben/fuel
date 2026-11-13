@@ -15,9 +15,6 @@ dist-ssr
 .env.*
 !.env.example
 
-# Supabase local stack
-supabase/.branches
-supabase/.temp
 
 # Playwright
 test-results

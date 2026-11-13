@@ -4,26 +4,25 @@ A personal fuel-tracking PWA for South Africa. See [`CLAUDE.md`](CLAUDE.md) for 
 
 ## Status
 
-All four build phases (spec §12) are implemented: data model + auth + form (Phase 1), the Liquid Glass design system + PWA manifest (Phase 2), the full insights suite (Phase 3), and offline queue + motion polish + CI checks (Phase 4).
-
-**No live Supabase project is wired up yet** — this environment had no Supabase account to provision one against. Everything is built against the schema in `supabase/migrations/`, but you'll need to create a real project and point `.env` at it before the app is usable. `src/lib/database.types.ts` is hand-written to match the migrations; regenerate it once a real project exists (see below).
+All four build phases (spec §12) are implemented. The backend is **Neon**: Postgres, the Data API (PostgREST, secured by RLS) and Managed Better Auth (email + password). `@neon/neon-js`'s Supabase-compatible adapter is used so the hooks keep the `db.from(...)` / `db.auth.*` shapes.
 
 ## Setup
 
-1. Create a Supabase project (free tier). Note the project URL and anon key.
-2. Copy `.env.example` to `.env` and fill in `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
-3. Run the migrations against your project:
-   ```bash
-   supabase link --project-ref <your-project-ref>
-   supabase db push
-   ```
-   Or, for local development: `supabase start && supabase db reset`.
-4. Regenerate types from the real schema (the checked-in file is hand-written and should be replaced):
-   ```bash
-   supabase gen types typescript --local > src/lib/database.types.ts
-   ```
-5. In the Supabase dashboard, follow spec §4 exactly: enable Email auth only, set Site URL / redirect URLs, create your own account, then **turn off "Allow new users to sign up."**
-6. `npm install && npm run dev`.
+1. Create a Neon project, enable **Auth** (Managed Better Auth) and the **Data API** (auth provider: Neon Auth; leave default grants off — the migrations grant explicitly).
+2. Apply `db/migrations/*.sql` in order (Neon SQL editor, `psql`, or the Neon MCP).
+3. Copy `.env.example` to `.env`; `VITE_NEON_URL` is the HTTPS form of your connection host + database, e.g. `https://ep-xxx.c-8.us-east-2.aws.neon.tech/neondb` (no credentials).
+4. Create your account once (Auth API reference UI at `<auth base url>/reference` → `POST /sign-up/email`), then **disable sign-ups** (Console → Auth → Email & password) and add your deployed origin to Auth's trusted origins.
+5. `npm install && npm run dev`.
+
+### Importing history from the old app
+
+In the old app: Settings → Export CSV. Then:
+
+```bash
+node scripts/csv-to-sql.mjs export.csv --email you@example.com --vehicle "Polo Vivo" --fuel 95 --zone inland --tank 45 > import.sql
+```
+
+Run `import.sql` against Neon (it's one transaction and fails if the user doesn't exist). Derived columns are recomputed by the `fill_ups_enriched` view, not imported.
 
 ## Commands
 
@@ -41,7 +40,7 @@ npm run lint              # oxlint
 
 ## Deploying
 
-Push to GitHub, then connect the repo in Cloudflare Pages: build command `npm run build`, output directory `dist`, Node 20. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as environment variables. See spec §3 for the keepalive workflow (`.github/workflows/keepalive.yml`) — it needs `SUPABASE_URL` and `SUPABASE_ANON_KEY` as GitHub Actions secrets.
+Push to GitHub, then connect the repo in Cloudflare Pages: build command `npm run build`, output directory `dist`, Node 20. Add `VITE_NEON_URL` as an environment variable and add the Pages origin to Neon Auth's trusted origins. Neon scales to zero rather than pausing, so no keepalive job is needed.
 
 ## What still needs a physical iPhone
 

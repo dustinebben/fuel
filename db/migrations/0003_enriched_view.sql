@@ -39,3 +39,5 @@ select o.*,
 
   extract(day from (o.filled_at - o.prev_filled_at)) as days_since_prev
 from ordered o;
+
+grant select on fill_ups_enriched to authenticated;

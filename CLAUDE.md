@@ -10,7 +10,7 @@ Full specification lives in `docs/FUEL_APP_SPEC.md`. Read it before starting a p
 
 A personal fuel-tracking PWA, installed to an iPhone home screen. Single user. South Africa: ZAR, litres, kilometres, 93/95 ULP and diesel. Dark theme only.
 
-Stack: Vite + React 19 + TypeScript (strict) · Tailwind v4 · Motion · Recharts · Supabase · Cloudflare Pages.
+Stack: Vite + React 19 + TypeScript (strict) · Tailwind v4 · Motion · Recharts · Neon (Postgres + Data API + Managed Better Auth) · Cloudflare Pages.
 
 ---
 
@@ -20,9 +20,9 @@ Stack: Vite + React 19 + TypeScript (strict) · Tailwind v4 · Motion · Rechart
 
 **All formatting lives in `src/lib/format.ts`.** A currency symbol, unit string or date format appearing anywhere else is a bug.
 
-**All SQL lives in `supabase/migrations/` as numbered files.** Never make schema changes through the dashboard. `supabase db reset` must rebuild everything from zero.
+**All SQL lives in `db/migrations/` as numbered files.** Never make schema changes through the console. Applying the files in order to an empty Neon database (with Neon Auth provisioned) must rebuild everything from zero.
 
-**Database types are generated, never hand-written.** `supabase gen types typescript --local > src/lib/database.types.ts`, committed.
+**Database types are generated, never hand-written** (apart from the two literal-union narrowings noted in the file header). Regenerate from the Neon Data API (https://neon.com/docs/data-api/generate-types) and commit `src/lib/database.types.ts`.
 
 **Money is `numeric` in Postgres and a string-formatted value at the edge.** Never `float` for currency.
 
@@ -82,9 +82,7 @@ npm run dev              # vite dev server
 npm test                 # vitest
 npm run test:e2e         # playwright
 npm run build             # production build
-supabase start           # local stack
-supabase db reset        # rebuild from migrations
-supabase gen types typescript --local > src/lib/database.types.ts
+node scripts/csv-to-sql.mjs export.csv --email … --vehicle …   # CSV export -> SQL import
 ```
 
 ---
@@ -99,6 +97,6 @@ supabase gen types typescript --local > src/lib/database.types.ts
 
 ## Security
 
-- The anon key is public and safe to ship. The service-role key must never appear in client code or the build output.
-- Row Level Security is the only access control. Never rely on client-side filtering for isolation.
-- Sign-ups are disabled in the Supabase dashboard. Don't add a sign-up UI.
+- `VITE_NEON_URL` is public and safe to ship. The Postgres connection string (`DATABASE_URL`) and any Neon API key must never appear in client code or the build output.
+- Row Level Security is the only access control. Never rely on client-side filtering for isolation. The Data API grants nothing by default — every table/view needs an explicit `grant` to `authenticated` and RLS.
+- Sign-ups are disabled in Neon Auth (Console → Auth, or `update_auth_email_and_password`). Don't add a sign-up UI.
