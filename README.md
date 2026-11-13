@@ -11,7 +11,7 @@ All four build phases (spec §12) are implemented. The backend is **Neon**: Post
 1. Create a Neon project, enable **Auth** (Managed Better Auth) and the **Data API** (auth provider: Neon Auth; leave default grants off — the migrations grant explicitly).
 2. Apply `db/migrations/*.sql` in order (Neon SQL editor, `psql`, or the Neon MCP).
 3. Copy `.env.example` to `.env`; `VITE_NEON_URL` is the HTTPS form of your connection host + database, e.g. `https://ep-xxx.c-8.us-east-2.aws.neon.tech/neondb` (no credentials).
-4. Create your account once (Auth API reference UI at `<auth base url>/reference` → `POST /sign-up/email`), then **disable sign-ups** (Console → Auth → Email & password) and add your deployed origin to Auth's trusted origins.
+4. Create your account once (Auth API reference UI at `<auth base url>/reference` → `POST /sign-up/email`), then **disable sign-ups** (Console → Auth → Email & password) and add your deployed origin (the Vercel domain) to Auth's trusted origins.
 5. `npm install && npm run dev`.
 
 ### Importing history from the old app
@@ -40,7 +40,7 @@ npm run lint              # oxlint
 
 ## Deploying
 
-Push to GitHub, then connect the repo in Cloudflare Pages: build command `npm run build`, output directory `dist`, Node 20. Add `VITE_NEON_URL` as an environment variable and add the Pages origin to Neon Auth's trusted origins. Neon scales to zero rather than pausing, so no keepalive job is needed.
+Hosted on Vercel (project `fuel`, GitHub-connected: every push to `main` deploys to production, other branches get previews). Framework preset Vite, build command `npm run build`, output directory `dist`. Set `VITE_NEON_URL` for Production and Preview, and add each deployed origin to Neon Auth's trusted origins. Neon scales to zero rather than pausing, so no keepalive job is needed.
 
 ## What still needs a physical iPhone
 

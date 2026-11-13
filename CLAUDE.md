@@ -10,7 +10,7 @@ Full specification lives in `docs/FUEL_APP_SPEC.md`. Read it before starting a p
 
 A personal fuel-tracking PWA, installed to an iPhone home screen. Single user. South Africa: ZAR, litres, kilometres, 93/95 ULP and diesel. Dark theme only.
 
-Stack: Vite + React 19 + TypeScript (strict) · Tailwind v4 · Motion · Recharts · Neon (Postgres + Data API + Managed Better Auth) · Cloudflare Pages.
+Stack: Vite + React 19 + TypeScript (strict) · Tailwind v4 · Motion · Recharts · Neon (Postgres + Data API + Managed Better Auth) · Vercel.
 
 ---
 
