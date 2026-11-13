@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // Prints a SQL statement that sets a Neon Auth (Better Auth) email+password credential.
-// NOTE: not yet verified against a real sign-in; if login fails after using it, the hash format needs adjusting.
 // Runs locally; the password is read from the PW env var and never leaves your machine.
 //
 //   read -rs PW && export PW     # type the password; nothing is echoed
