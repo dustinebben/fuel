@@ -1,7 +1,7 @@
 // South African petrol pricing calendar. See CLAUDE.md / spec §6: 93/95 ULP prices are
 // regulated and change on the first Wednesday of every month. Diesel is a wholesale
 // reference, not a regulated pump price. Prices themselves live in the `fuel_prices`
-// table (supabase/migrations/0004_fuel_prices.sql) and are updated manually — this
+// table (db/migrations/0004_fuel_prices.sql) and are updated manually — this
 // file only contains the pure date maths and lookup helpers around that data.
 
 import type { FuelPriceRow, FuelType, PriceZone } from './database.types'

@@ -12,7 +12,7 @@ const round = (value: number, decimals: number): number => {
 }
 
 // ---------------------------------------------------------------------------
-// Enrichment — mirrors supabase/migrations/0003_enriched_view.sql exactly, so the
+// Enrichment — mirrors db/migrations/0003_enriched_view.sql exactly, so the
 // same rules apply whether a row came from Postgres or was computed locally while
 // offline (see the Dexie write queue in lib/offlineQueue.ts).
 // ---------------------------------------------------------------------------

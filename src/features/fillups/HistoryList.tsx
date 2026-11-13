@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import { GlassCard } from '../../components/glass/GlassCard'
 import type { EnrichedFillUpRow } from '../../lib/database.types'
 import { formatCurrency, formatDate, formatL100km } from '../../lib/format'
-import { supabase } from '../../lib/supabase'
+import { db } from '../../lib/db'
 import { useQueryClient } from '@tanstack/react-query'
 import { fillUpsQueryKey } from './useFillUps'
 import { ToastStack, type ToastState } from '../../components/ui/Toast'
@@ -45,7 +45,7 @@ export function HistoryList({ rows, vehicleId }: { rows: EnrichedFillUpRow[]; ve
     ])
     setTimeout(async () => {
       setToasts((t) => t.filter((x) => x.id !== toastId))
-      if (!undone) await supabase.from('fill_ups').delete().eq('id', id)
+      if (!undone) await db.from('fill_ups').delete().eq('id', id)
     }, 4000)
   }
 

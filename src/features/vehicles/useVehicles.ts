@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../../lib/supabase'
+import { db } from '../../lib/db'
 import type { VehicleRow } from '../../lib/database.types'
 
 export function useVehicles() {
   return useQuery({
     queryKey: ['vehicles'],
     queryFn: async (): Promise<VehicleRow[]> => {
-      const { data, error } = await supabase.from('vehicles').select('*').order('created_at', { ascending: true })
+      const { data, error } = await db.from('vehicles').select('*').order('created_at', { ascending: true })
       if (error) throw error
       return data
     },
@@ -29,7 +29,7 @@ export function useCreateVehicle() {
       priceZone: VehicleRow['price_zone']
       tankCapacityL: number | null
     }) => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('vehicles')
         .insert({
           name: input.name,
@@ -51,7 +51,7 @@ export function useUpdateVehicle() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...patch }: Partial<VehicleRow> & { id: string }) => {
-      const { data, error } = await supabase.from('vehicles').update(patch).eq('id', id).select().single()
+      const { data, error } = await db.from('vehicles').update(patch).eq('id', id).select().single()
       if (error) throw error
       return data
     },

@@ -18,8 +18,7 @@ export default defineConfig({
     url: 'http://localhost:5183',
     reuseExistingServer: !process.env.CI,
     env: {
-      VITE_SUPABASE_URL: 'https://placeholder.supabase.co',
-      VITE_SUPABASE_ANON_KEY: 'placeholder-anon-key',
+      VITE_NEON_URL: 'https://placeholder.neon.tech/neondb',
     },
   },
 })

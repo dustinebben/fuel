@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { supabase } from '../../lib/supabase'
+import { db } from '../../lib/db'
 import { dequeueFillUp, enqueueFillUp, pendingFillUps, pendingCount } from '../../lib/offlineQueue'
 import type { EnrichedFillUpRow, FillUpInsert } from '../../lib/database.types'
 
@@ -16,7 +16,7 @@ export function useEnrichedFillUps(vehicleId: string | null) {
     queryKey: fillUpsQueryKey(vehicleId ?? 'none'),
     enabled: vehicleId !== null,
     queryFn: async (): Promise<EnrichedFillUpRow[]> => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('fill_ups_enriched')
         .select('*')
         .eq('vehicle_id', vehicleId!)
@@ -46,7 +46,7 @@ export function useCreateFillUp(vehicleId: string) {
         return { queued: true as const }
       }
 
-      const { error } = await supabase.from('fill_ups').insert(fullPayload)
+      const { error } = await db.from('fill_ups').insert(fullPayload)
       if (error) {
         // Could be a real validation error or a flaky connection despite navigator.onLine.
         // Either way the fill-up must not be lost — queue it and let the sync manager retry.
@@ -66,7 +66,7 @@ export async function flushOfflineQueue(queryClient: QueryClient) {
   if (!navigator.onLine) return
   const queued = await pendingFillUps()
   for (const item of queued) {
-    const { error } = await supabase.from('fill_ups').insert(item.payload)
+    const { error } = await db.from('fill_ups').insert(item.payload)
     if (error) break // still offline, or a real error — stop and retry on the next trigger
     await dequeueFillUp(item.localId)
   }

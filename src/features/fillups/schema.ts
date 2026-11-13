@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-// Mirrors the constraints in supabase/migrations/0001_init.sql.
+// Mirrors the constraints in db/migrations/0001_init.sql.
 export const fillUpSchema = z.object({
   odometerKm: z.number().positive(),
   litres: z.number().positive(),

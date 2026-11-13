@@ -1,8 +1,9 @@
--- Vehicles and fill-ups: the core schema. Rebuildable from zero via `supabase db reset`.
+-- Vehicles and fill-ups: the core schema. Targets Neon with Managed Better Auth, whose
+-- users live in neon_auth."user" (uuid ids). Apply the files in order to an empty database.
 
 create table vehicles (
   id              uuid primary key default gen_random_uuid(),
-  user_id         uuid not null references auth.users(id) on delete cascade,
+  user_id         uuid not null references neon_auth."user"(id) on delete cascade,
   name            text not null,
   make            text,
   model           text,
@@ -19,7 +20,7 @@ create table vehicles (
 
 create table fill_ups (
   id                    uuid primary key default gen_random_uuid(),
-  user_id               uuid not null references auth.users(id) on delete cascade,
+  user_id               uuid not null references neon_auth."user"(id) on delete cascade,
   vehicle_id            uuid not null references vehicles(id) on delete cascade,
 
   filled_at             timestamptz not null default now(),

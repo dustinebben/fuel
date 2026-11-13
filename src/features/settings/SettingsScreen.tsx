@@ -4,7 +4,7 @@ import { GlassChip } from '../../components/glass/GlassChip'
 import { NumericField } from '../../components/ui/NumericField'
 import { Button } from '../../components/ui/Button'
 import { Toggle } from '../../components/ui/Toggle'
-import { supabase } from '../../lib/supabase'
+import { db } from '../../lib/db'
 import { downloadCsv } from '../../lib/csv'
 import { useUpdateVehicle } from '../vehicles/useVehicles'
 import type { EnrichedFillUpRow, FuelType, PriceZone, VehicleRow } from '../../lib/database.types'
@@ -115,7 +115,7 @@ export function SettingsScreen({
         </Button>
       </GlassCard>
 
-      <Button variant="ghost" className="w-full" onClick={() => supabase.auth.signOut()}>
+      <Button variant="ghost" className="w-full" onClick={() => db.auth.signOut()}>
         Sign out
       </Button>
     </div>

@@ -1,5 +1,5 @@
 // Petrol stations have poor reception, and that's the one moment this app gets used.
-// Writes land here first (durable across a cold start), then sync to Supabase.
+// Writes land here first (durable across a cold start), then sync to Neon.
 // Conflict resolution is trivially last-write-wins — single user, single device.
 
 import Dexie, { type EntityTable } from 'dexie'
