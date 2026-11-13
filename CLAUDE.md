@@ -10,7 +10,7 @@ Full specification lives in `docs/FUEL_APP_SPEC.md`. Read it before starting a p
 
 A personal fuel-tracking PWA, installed to an iPhone home screen. Single user. South Africa: ZAR, litres, kilometres, 93/95 ULP and diesel. Dark theme only.
 
-Stack: Vite + React 19 + TypeScript (strict) · Tailwind v4 · Motion · Recharts · Neon (Postgres + Data API + Managed Better Auth) · Cloudflare Pages.
+Stack: Vite + React 19 + TypeScript (strict) · Tailwind v4 · Motion · Recharts · Neon (Postgres + Data API + Managed Better Auth) · Vercel.
 
 ---
 
@@ -32,15 +32,18 @@ Stack: Vite + React 19 + TypeScript (strict) · Tailwind v4 · Motion · Rechart
 
 ## The correctness rule that matters most
 
-Consumption is only measurable between two *complete* fill-ups. An interval is invalid — and `actual_l_per_100km` must be `null` — when any of these hold:
+Consumption is measured **full tank to full tank**. A *span* runs from the previous full tank (exclusive) to this full tank (inclusive) and may contain partial top-ups, whose litres all count. `actual_l_per_100km` and `cost_per_km` are `null` when any of these hold:
 
-- it's the first fill-up for the vehicle
-- `is_full_tank = false` on this fill
-- `is_full_tank = false` on the previous fill
-- `missed_previous = true` on this fill
+- this fill is not a full tank (a partial fill is counted in the next full tank's span)
+- there is no earlier full tank for the vehicle
+- `missed_previous = true` on any fill inside the span
 - the odometer did not increase
 
-Never display a number derived from an invalid interval. Never substitute 0. Filter `is not null` before any aggregate. A plausible-looking wrong number is worse than an obviously missing one.
+The SQL view (`db/migrations/0005_full_to_full.sql`) is the source of truth; `enrichFillUps` in `metrics.ts` mirrors it exactly and both are tested. Anything that previews a figure (e.g. the add form) goes through `previewConsumption`, never its own maths. Per-fill `distance_km` is the gap since the previous fill of any kind; the distance of a *tank* is `span_distance_km`.
+
+Never display a number derived from an invalid span. Never substitute 0. Filter `is not null` before any aggregate. A plausible-looking wrong number is worse than an obviously missing one.
+
+**Writes:** only an unreachable network may be queued offline. A write the server answered with an error is shown to the person, never silently queued.
 
 ---
 

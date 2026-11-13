@@ -1,5 +1,6 @@
 // Petrol stations have poor reception, and that's the one moment this app gets used.
-// Writes land here first (durable across a cold start), then sync to Neon.
+// Only writes that failed because the network was unreachable land here (durable across a
+// cold start), then sync to Neon. A write the server rejects is NOT silently queued.
 // Conflict resolution is trivially last-write-wins — single user, single device.
 
 import Dexie, { type EntityTable } from 'dexie'
@@ -9,6 +10,9 @@ export interface QueuedFillUp {
   localId: string
   payload: FillUpInsert
   createdAt: number
+  /** Set when the server answered and refused this write. Such items stay in the queue
+   * for the person to fix or discard, and are never retried automatically. */
+  lastError?: string
 }
 
 class FuelOfflineDB extends Dexie {
@@ -44,4 +48,14 @@ export async function pendingFillUps(): Promise<QueuedFillUp[]> {
 
 export async function pendingCount(): Promise<number> {
   return offlineDB.queuedFillUps.count()
+}
+
+export async function markQueuedFailed(localId: string, lastError: string): Promise<void> {
+  await offlineDB.queuedFillUps.update(localId, { lastError })
+}
+
+export async function clearQueuedFailure(localId: string): Promise<void> {
+  await offlineDB.queuedFillUps.where('localId').equals(localId).modify((item) => {
+    delete item.lastError
+  })
 }

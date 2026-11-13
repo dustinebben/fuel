@@ -4,10 +4,10 @@ import { spendSummary } from '../../../lib/metrics'
 import { formatCurrency } from '../../../lib/format'
 import type { EnrichedFillUpRow } from '../../../lib/database.types'
 
-export function SpendCard({ rows, index }: { rows: EnrichedFillUpRow[]; index?: number }) {
+export function SpendCard({ rows, index, className }: { rows: EnrichedFillUpRow[]; index?: number; className?: string }) {
   if (rows.length === 0) {
     return (
-      <InsightCard label="Spend" index={index}>
+      <InsightCard label="Spend" index={index} className={className}>
         <EmptyState />
       </InsightCard>
     )
@@ -16,7 +16,7 @@ export function SpendCard({ rows, index }: { rows: EnrichedFillUpRow[]; index?: 
   const { thisMonth, thisYear, monthlySparkline } = spendSummary(rows)
 
   return (
-    <InsightCard label="Spend" index={index}>
+    <InsightCard label="Spend" index={index} className={className}>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs text-white/40">This month</p>

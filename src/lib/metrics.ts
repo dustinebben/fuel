@@ -12,9 +12,16 @@ const round = (value: number, decimals: number): number => {
 }
 
 // ---------------------------------------------------------------------------
-// Enrichment — mirrors db/migrations/0003_enriched_view.sql exactly, so the
-// same rules apply whether a row came from Postgres or was computed locally while
-// offline (see the Dexie write queue in lib/offlineQueue.ts).
+// Enrichment — mirrors db/migrations/0005_full_to_full.sql exactly, so the same rules
+// apply whether a row came from Postgres or was computed locally.
+//
+// Consumption is measured full-tank to full-tank. A "span" runs from the previous FULL
+// tank (exclusive) to this full tank (inclusive); it may contain partial top-ups, whose
+// litres all count. The span is unusable (consumption and cost-per-km are null) when:
+//   - this fill is not a full tank
+//   - there is no earlier full tank for the vehicle
+//   - any fill inside the span has missed_previous = true
+//   - the odometer did not increase
 // ---------------------------------------------------------------------------
 
 export function enrichFillUps(fillUps: FillUpRow[]): EnrichedFillUpRow[] {
@@ -29,13 +36,21 @@ export function enrichFillUps(fillUps: FillUpRow[]): EnrichedFillUpRow[] {
   for (const list of byVehicle.values()) {
     const ordered = [...list].sort((a, b) => a.odometer_km - b.odometer_km)
     ordered.forEach((row, i) => {
-      result.push(enrichOne(row, i > 0 ? ordered[i - 1] : null))
+      let prevFullIdx = -1
+      for (let j = i - 1; j >= 0; j--) {
+        if (ordered[j].is_full_tank) {
+          prevFullIdx = j
+          break
+        }
+      }
+      const spanRows = prevFullIdx >= 0 ? ordered.slice(prevFullIdx + 1, i + 1) : []
+      result.push(enrichOne(row, i > 0 ? ordered[i - 1] : null, prevFullIdx >= 0 ? ordered[prevFullIdx] : null, spanRows))
     })
   }
   return result
 }
 
-function enrichOne(o: FillUpRow, prev: FillUpRow | null): EnrichedFillUpRow {
+function enrichOne(o: FillUpRow, prev: FillUpRow | null, prevFull: FillUpRow | null, spanRows: FillUpRow[]): EnrichedFillUpRow {
   const prevOdometerKm = prev?.odometer_km ?? null
   const prevIsFull = prev?.is_full_tank ?? null
   const prevRangeEstimate = prev?.range_estimate_km ?? null
@@ -44,18 +59,17 @@ function enrichOne(o: FillUpRow, prev: FillUpRow | null): EnrichedFillUpRow {
   const distanceKm = prevOdometerKm !== null ? round(o.odometer_km - prevOdometerKm, 1) : null
   const pricePerLitre = o.litres !== 0 ? round(o.total_cost / o.litres, 2) : null
 
-  const intervalMeasurable =
-    prevOdometerKm !== null &&
-    !o.missed_previous &&
-    o.is_full_tank &&
-    (prevIsFull ?? false) &&
-    distanceKm !== null &&
-    distanceKm > 0
+  const hasSpan = o.is_full_tank && prevFull !== null
+  const spanDistanceKm = hasSpan ? round(o.odometer_km - prevFull.odometer_km, 1) : null
+  const spanLitres = hasSpan ? round(spanRows.reduce((s, r) => s + r.litres, 0), 2) : null
+  const spanCost = hasSpan ? round(spanRows.reduce((s, r) => s + r.total_cost, 0), 2) : null
+  const spanFills = hasSpan ? spanRows.length : null
+  const spanMissed = hasSpan ? spanRows.some((r) => r.missed_previous) : null
 
-  const actualL100km = intervalMeasurable ? round((o.litres * 100) / distanceKm!, 2) : null
+  const spanMeasurable = hasSpan && !spanMissed && spanDistanceKm !== null && spanDistanceKm > 0
 
-  const costMeasurable = prevOdometerKm !== null && !o.missed_previous && distanceKm !== null && distanceKm > 0
-  const costPerKm = costMeasurable ? round(o.total_cost / distanceKm!, 4) : null
+  const actualL100km = spanMeasurable ? round((spanLitres! * 100) / spanDistanceKm!, 2) : null
+  const costPerKm = spanMeasurable ? round(spanCost! / spanDistanceKm!, 4) : null
 
   const rangeEstimateErrorKm =
     prevRangeEstimate !== null && prevOdometerKm !== null && distanceKm !== null
@@ -79,7 +93,39 @@ function enrichOne(o: FillUpRow, prev: FillUpRow | null): EnrichedFillUpRow {
     cost_per_km: costPerKm,
     range_estimate_error_km: rangeEstimateErrorKm,
     days_since_prev: daysSincePrev,
+    span_distance_km: spanDistanceKm,
+    span_litres: spanLitres,
+    span_cost: spanCost,
+    span_fills: spanFills,
+    span_missed: spanMissed,
   }
+}
+
+/** What a fill-up being typed into the form would measure, using exactly the stored
+ * rules. `editingId` leaves that existing row out so an edit isn't counted twice. */
+export function previewConsumption(
+  rows: EnrichedFillUpRow[],
+  candidate: Pick<FillUpRow, 'odometer_km' | 'litres' | 'is_full_tank' | 'missed_previous'>,
+  editingId?: string,
+): number | null {
+  const vehicleId = rows[0]?.vehicle_id ?? 'preview'
+  const history: FillUpRow[] = rows.filter((r) => r.id !== editingId)
+  const hypothetical: FillUpRow = {
+    id: '__preview__',
+    user_id: rows[0]?.user_id ?? '',
+    vehicle_id: vehicleId,
+    filled_at: new Date().toISOString(),
+    total_cost: 0,
+    computer_l_per_100km: null,
+    range_estimate_km: null,
+    station: null,
+    fuel_grade: null,
+    notes: null,
+    created_at: new Date().toISOString(),
+    ...candidate,
+  }
+  const enriched = enrichFillUps([...history, hypothetical])
+  return enriched.find((r) => r.id === '__preview__')?.actual_l_per_100km ?? null
 }
 
 const validConsumption = (rows: EnrichedFillUpRow[]) => rows.filter((r) => r.actual_l_per_100km !== null)
@@ -116,6 +162,13 @@ export function lastTankSummary(rows: EnrichedFillUpRow[]): LastTankSummary | nu
 
 export function costPer100km(row: EnrichedFillUpRow): number | null {
   return row.cost_per_km === null ? null : round(row.cost_per_km * 100, 2)
+}
+
+/** Cost per 100 km of the most recent full-to-full span that could be measured. */
+export function latestCostPer100km(rows: EnrichedFillUpRow[]): number | null {
+  const measurable = chronological(rows).filter((r) => r.cost_per_km !== null)
+  const latest = measurable[measurable.length - 1]
+  return latest ? costPer100km(latest) : null
 }
 
 export interface RollingAverages {
@@ -165,6 +218,8 @@ export interface BestWorstTank {
   annualisedRandDifference: number | null
 }
 
+const MIN_TANKS_FOR_SAVINGS_CLAIM = 5
+
 export function bestWorstTank(rows: EnrichedFillUpRow[]): BestWorstTank | null {
   const valid = validConsumption(rows)
   if (valid.length < 2) return null
@@ -172,8 +227,10 @@ export function bestWorstTank(rows: EnrichedFillUpRow[]): BestWorstTank | null {
   const worst = valid.reduce((a, b) => (b.actual_l_per_100km! > a.actual_l_per_100km! ? b : a))
   const annualDistance = projectedAnnualDistanceKm(rows)
   const avgPrice = averagePricePerLitre(rows)
+  // Best-vs-worst of a handful of tanks is mostly noise, so the "worth R x a year" claim
+  // is only made once there are enough measured tanks behind it.
   const annualisedRandDifference =
-    annualDistance !== null && avgPrice !== null
+    valid.length >= MIN_TANKS_FOR_SAVINGS_CLAIM && annualDistance !== null && avgPrice !== null
       ? round(((worst.actual_l_per_100km! - best.actual_l_per_100km!) / 100) * annualDistance * avgPrice, 2)
       : null
   return { best, worst, annualisedRandDifference }
@@ -413,9 +470,12 @@ export interface DistancePerTank {
 }
 
 export function distancePerTank(rows: EnrichedFillUpRow[]): DistancePerTank | null {
-  const withDistance = rows.filter((r) => r.distance_km !== null && r.distance_km > 0).map((r) => r.distance_km!)
-  if (withDistance.length === 0) return null
-  return { average: round(average(withDistance)!, 0), best: round(Math.max(...withDistance), 0) }
+  // A tank is full-to-full: partial top-ups in between don't shorten it.
+  const spans = rows
+    .filter((r) => r.span_missed === false && r.span_distance_km !== null && r.span_distance_km > 0)
+    .map((r) => r.span_distance_km!)
+  if (spans.length === 0) return null
+  return { average: round(average(spans)!, 0), best: round(Math.max(...spans), 0) }
 }
 
 // ---------------------------------------------------------------------------
@@ -470,15 +530,34 @@ export function sinceLastFill(rows: EnrichedFillUpRow[], now = new Date()): Sinc
   const last = chrono[chrono.length - 1]
   const daysElapsed = Math.floor((now.getTime() - new Date(last.filled_at).getTime()) / 86_400_000)
 
+  // Only a full tank tells us how much fuel was in the car; after a partial top-up the
+  // remaining amount is unknowable, so say nothing rather than guess.
   const avgL100km = rollingAverages(rows).lifetime
-  const avgDistancePerDay = averageDaysBetweenFills(rows)
-  const distPerTank = distancePerTank(rows)
+  const annualKm = projectedAnnualDistanceKm(rows)
   let litresRemainingEstimate: number | null = null
-  if (avgL100km !== null && avgDistancePerDay !== null && avgDistancePerDay > 0 && distPerTank !== null) {
-    const estDistancePerDay = distPerTank.average / avgDistancePerDay
-    const litresUsed = ((avgL100km / 100) * estDistancePerDay * daysElapsed)
+  if (last.is_full_tank && avgL100km !== null && annualKm !== null) {
+    const litresUsed = (avgL100km / 100) * (annualKm / 365) * daysElapsed
     litresRemainingEstimate = round(Math.max(last.litres - litresUsed, 0), 1)
   }
 
   return { daysElapsed, litresRemainingEstimate }
+}
+
+// ---------------------------------------------------------------------------
+// Next fill estimate — when you usually fill up again, versus how long it's been.
+// ---------------------------------------------------------------------------
+
+export interface NextFillEstimate {
+  daysSince: number
+  averageGapDays: number
+  /** Positive: days until the usual refill point. Negative: days overdue. */
+  dueInDays: number
+}
+
+export function nextFillEstimate(rows: EnrichedFillUpRow[], now = new Date()): NextFillEstimate | null {
+  const averageGapDays = averageDaysBetweenFills(rows)
+  if (averageGapDays === null || rows.length === 0) return null
+  const last = chronological(rows)[rows.length - 1]
+  const daysSince = Math.floor((now.getTime() - new Date(last.filled_at).getTime()) / 86_400_000)
+  return { daysSince, averageGapDays, dueInDays: round(averageGapDays - daysSince, 1) }
 }

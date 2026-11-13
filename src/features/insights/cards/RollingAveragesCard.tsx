@@ -1,6 +1,6 @@
 import { InsightCard, EmptyState } from '../InsightCard'
 import { rollingAverages } from '../../../lib/metrics'
-import { formatL100km } from '../../../lib/format'
+import { L100KM_UNIT, formatDecimal } from '../../../lib/format'
 import type { EnrichedFillUpRow } from '../../../lib/database.types'
 
 export function RollingAveragesCard({ rows, index }: { rows: EnrichedFillUpRow[]; index?: number }) {
@@ -11,15 +11,20 @@ export function RollingAveragesCard({ rows, index }: { rows: EnrichedFillUpRow[]
       {last5 === null && lifetime === null ? (
         <EmptyState />
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-3">
           <div>
             <p className="text-xs text-white/40">Last 5 fills</p>
-            <p className="text-xl font-semibold text-white">{formatL100km(last5)}</p>
+            <p className="text-2xl font-semibold text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatDecimal(last5)}
+            </p>
           </div>
           <div>
             <p className="text-xs text-white/40">Lifetime</p>
-            <p className="text-xl font-semibold text-white">{formatL100km(lifetime)}</p>
+            <p className="text-2xl font-semibold text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatDecimal(lifetime)}
+            </p>
           </div>
+          <p className="text-[11px] text-white/35">{L100KM_UNIT}</p>
         </div>
       )}
     </InsightCard>
