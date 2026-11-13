@@ -73,3 +73,19 @@ export function formatDays(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '—'
   return `${Math.round(value)} day${Math.round(value) === 1 ? '' : 's'}`
 }
+
+/** Local calendar date as yyyy-mm-dd — the value an <input type="date"> reads and writes. */
+export function toDateInputValue(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+export const L100KM_UNIT = 'L/100km'
+
+/** A bare number to a fixed precision, for layouts that show the unit separately. */
+export function formatDecimal(value: number | null | undefined, decimals = 2): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—'
+  return value.toFixed(decimals)
+}

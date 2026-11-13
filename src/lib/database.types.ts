@@ -154,7 +154,7 @@ export type Database = {
         // straight `select f.*, ...` over `fill_ups` partitioned by window functions —
         // every base column is exactly as present/absent as it is on the underlying
         // NOT NULL fill_ups row. Only the window-derived columns are genuinely nullable
-        // (see db/migrations/0003_enriched_view.sql).
+        // (see db/migrations/0005_full_to_full.sql).
         Row: Database['public']['Tables']['fill_ups']['Row'] & {
           prev_odometer_km: number | null
           prev_is_full: boolean | null
@@ -166,6 +166,11 @@ export type Database = {
           cost_per_km: number | null
           range_estimate_error_km: number | null
           days_since_prev: number | null
+          span_distance_km: number | null
+          span_litres: number | null
+          span_cost: number | null
+          span_fills: number | null
+          span_missed: boolean | null
         }
         Relationships: [
           {

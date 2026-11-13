@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
 import { useSession } from './useSession'
 import { SignInScreen } from './SignInScreen'
+import { LoadingSkeleton } from '../../app/LoadingSkeleton'
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { session, loading } = useSession()
 
   if (loading) {
-    return <div className="flex min-h-dvh items-center justify-center text-white/40">Loading…</div>
+    return <LoadingSkeleton />
   }
 
   if (!session) {

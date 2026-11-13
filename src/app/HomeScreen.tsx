@@ -7,7 +7,8 @@ import { LastTankCard } from '../features/insights/cards/LastTankCard'
 import { CostPer100kmCard } from '../features/insights/cards/CostPer100kmCard'
 import { TrendChartCard } from '../features/insights/cards/TrendChartCard'
 import { BiasCard } from '../features/insights/cards/BiasCard'
-import { RangeAccuracyCard } from '../features/insights/cards/RangeAccuracyCard'
+import { NextFillCard } from '../features/insights/cards/NextFillCard'
+import { SpendCard } from '../features/insights/cards/SpendCard'
 import { NextPriceChangeCard } from '../features/insights/cards/NextPriceChangeCard'
 import { useFuelPrices } from '../features/insights/useFuelPrices'
 import type { EnrichedFillUpRow, VehicleRow } from '../lib/database.types'
@@ -40,14 +41,15 @@ export function HomeScreen({ vehicle, rows }: { vehicle: VehicleRow; rows: Enric
         <LastTankCard rows={rows} index={0} />
         <div className="grid grid-cols-2 gap-3">
           <CostPer100kmCard rows={rows} index={1} />
-          <RangeAccuracyCard rows={rows} index={2} />
+          <NextFillCard rows={rows} index={2} />
         </div>
-        <TrendChartCard rows={rows} index={3} />
-        <BiasCard rows={rows} index={4} />
-        <NextPriceChangeCard vehicle={vehicle} prices={prices} tankCapacityL={vehicle.tank_capacity_l} index={5} />
+        <SpendCard rows={rows} index={3} />
+        <TrendChartCard rows={rows} index={4} />
+        <BiasCard rows={rows} index={5} />
+        <NextPriceChangeCard vehicle={vehicle} prices={prices} tankCapacityL={vehicle.tank_capacity_l} index={6} />
 
         {rows.length === 0 && (
-          <GlassCard className="p-6 text-center text-sm text-white/50" index={6}>
+          <GlassCard className="p-6 text-center text-sm text-white/50" index={7}>
             Log your first fill-up to bring this to life.
           </GlassCard>
         )}

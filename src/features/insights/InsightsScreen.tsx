@@ -1,7 +1,5 @@
 import type { EnrichedFillUpRow, VehicleRow } from '../../lib/database.types'
 import { useFuelPrices } from './useFuelPrices'
-import { LastTankCard } from './cards/LastTankCard'
-import { CostPer100kmCard } from './cards/CostPer100kmCard'
 import { RollingAveragesCard } from './cards/RollingAveragesCard'
 import { TrendChartCard } from './cards/TrendChartCard'
 import { BestWorstCard } from './cards/BestWorstCard'
@@ -18,6 +16,7 @@ import { DistancePerTankCard } from './cards/DistancePerTankCard'
 import { NextPriceChangeCard } from './cards/NextPriceChangeCard'
 import { PaidVsOfficialCard } from './cards/PaidVsOfficialCard'
 import { SinceLastFillCard } from './cards/SinceLastFillCard'
+import { NextFillCard } from './cards/NextFillCard'
 
 export function InsightsScreen({ rows, vehicle }: { rows: EnrichedFillUpRow[]; vehicle: VehicleRow | null }) {
   const { data: prices = [] } = useFuelPrices()
@@ -36,7 +35,7 @@ export function InsightsScreen({ rows, vehicle }: { rows: EnrichedFillUpRow[]; v
 
       <p className="pt-4 text-[11px] font-medium uppercase tracking-[0.08em] text-white/40">Money</p>
       <div className="grid grid-cols-2 gap-3">
-        <SpendCard rows={rows} index={4} />
+        <SpendCard rows={rows} index={4} className="col-span-2" />
         <PricePaidCard rows={rows} index={5} />
         <ProjectedCostCard rows={rows} index={6} />
         <TenPercentCard rows={rows} index={7} />
@@ -57,11 +56,10 @@ export function InsightsScreen({ rows, vehicle }: { rows: EnrichedFillUpRow[]; v
         <PaidVsOfficialCard rows={rows} prices={prices} vehicle={vehicle} index={14} />
       </div>
 
-      <p className="pt-4 text-[11px] font-medium uppercase tracking-[0.08em] text-white/40">Housekeeping</p>
+      <p className="pt-4 text-[11px] font-medium uppercase tracking-[0.08em] text-white/40">Timing</p>
       <div className="grid grid-cols-2 gap-3">
         <SinceLastFillCard rows={rows} index={15} />
-        <LastTankCard rows={rows} index={16} />
-        <CostPer100kmCard rows={rows} index={17} />
+        <NextFillCard rows={rows} index={16} />
       </div>
     </div>
   )

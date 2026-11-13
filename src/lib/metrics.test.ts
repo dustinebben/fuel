@@ -6,10 +6,14 @@ import {
   enrichFillUps,
   inferredUsableTank,
   lastTankSummary,
+  latestCostPer100km,
   paidVsOfficial,
   projectedAnnualDistanceKm,
   rangeAccuracy,
+  nextFillEstimate,
+  previewConsumption,
   rollingAverages,
+  sinceLastFill,
   tripComputerBias,
 } from './metrics'
 import type { FillUpRow } from './database.types'
@@ -104,13 +108,14 @@ describe('the four null paths for actual_l_per_100km', () => {
     expect(second.actual_l_per_100km).toBeNull()
   })
 
-  it('is null when the previous fill was not a full tank', () => {
+  it('is null when there is no earlier full tank to measure from', () => {
     const fills = [
       fillUp({ odometer_km: 100_000, litres: 40, is_full_tank: false, filled_at: '2026-01-01T00:00:00Z' }),
       fillUp({ odometer_km: 100_500, litres: 30, is_full_tank: true, filled_at: '2026-01-10T00:00:00Z' }),
     ]
     const [, second] = enrichFillUps(fills)
     expect(second.actual_l_per_100km).toBeNull()
+    expect(second.span_litres).toBeNull()
   })
 
   it('is null when missed_previous is true', () => {
@@ -142,6 +147,63 @@ describe('the four null paths for actual_l_per_100km', () => {
     expect(fills).toBeTruthy() // keep fixture referenced
     expect(enriched[1].actual_l_per_100km).toBeNull()
     expect(enriched[1].distance_km).toBe(0)
+  })
+})
+
+describe('full-to-full spans (partial fills in between)', () => {
+  const full1 = () => fillUp({ odometer_km: 100_000, litres: 40, total_cost: 1000, is_full_tank: true, filled_at: '2026-01-01T00:00:00Z' })
+
+  it('measures from the previous FULL tank, summing partial fills in between', () => {
+    const [, partial, last] = enrichFillUps([
+      full1(),
+      fillUp({ odometer_km: 100_300, litres: 20, total_cost: 500, is_full_tank: false, filled_at: '2026-01-05T00:00:00Z' }),
+      fillUp({ odometer_km: 100_600, litres: 25, total_cost: 650, is_full_tank: true, filled_at: '2026-01-10T00:00:00Z' }),
+    ])
+    expect(partial.actual_l_per_100km).toBeNull()
+    expect(last.actual_l_per_100km).toBe(7.5) // (20 + 25) L over 600 km
+    expect(last.span_litres).toBe(45)
+    expect(last.span_distance_km).toBe(600)
+    expect(last.span_fills).toBe(2)
+    expect(last.cost_per_km).toBeCloseTo(1150 / 600, 4)
+  })
+
+  it('a partial fill never gets a consumption or cost-per-km figure of its own', () => {
+    const [, partial] = enrichFillUps([
+      full1(),
+      fillUp({ odometer_km: 100_300, litres: 20, total_cost: 500, is_full_tank: false, filled_at: '2026-01-05T00:00:00Z' }),
+    ])
+    expect(partial.actual_l_per_100km).toBeNull()
+    expect(partial.cost_per_km).toBeNull()
+  })
+
+  it('is null if ANY fill inside the span is marked missed_previous', () => {
+    const [, , last] = enrichFillUps([
+      full1(),
+      fillUp({ odometer_km: 100_300, litres: 20, is_full_tank: false, missed_previous: true, filled_at: '2026-01-05T00:00:00Z' }),
+      fillUp({ odometer_km: 100_600, litres: 25, is_full_tank: true, filled_at: '2026-01-10T00:00:00Z' }),
+    ])
+    expect(last.actual_l_per_100km).toBeNull()
+    expect(last.cost_per_km).toBeNull()
+  })
+
+  it('consecutive full tanks behave exactly as before (span of one fill)', () => {
+    const [, second] = enrichFillUps([
+      full1(),
+      fillUp({ odometer_km: 100_500, litres: 30, total_cost: 780, is_full_tank: true, filled_at: '2026-01-10T00:00:00Z' }),
+    ])
+    expect(second.actual_l_per_100km).toBe(6)
+    expect(second.span_fills).toBe(1)
+  })
+
+  it('the next span starts at the latest full tank, not at an older one', () => {
+    const rows = enrichFillUps([
+      full1(),
+      fillUp({ odometer_km: 100_500, litres: 30, is_full_tank: true, filled_at: '2026-01-10T00:00:00Z' }),
+      fillUp({ odometer_km: 101_000, litres: 35, is_full_tank: true, filled_at: '2026-01-20T00:00:00Z' }),
+    ])
+    expect(rows[2].span_litres).toBe(35)
+    expect(rows[2].span_distance_km).toBe(500)
+    expect(rows[2].actual_l_per_100km).toBe(7)
   })
 })
 
@@ -194,6 +256,19 @@ describe('other metrics', () => {
     expect(result!.best).toBeGreaterThanOrEqual(result!.average)
   })
 
+  it('distancePerTank uses full-to-full spans, not the gap since a partial top-up', () => {
+    const spans = enrichFillUps([
+      fillUp({ odometer_km: 100_000, litres: 40, is_full_tank: true, filled_at: '2026-01-01T00:00:00Z' }),
+      fillUp({ odometer_km: 100_300, litres: 20, is_full_tank: false, filled_at: '2026-01-05T00:00:00Z' }),
+      fillUp({ odometer_km: 100_600, litres: 25, is_full_tank: true, filled_at: '2026-01-10T00:00:00Z' }),
+    ])
+    expect(distancePerTank(spans)).toEqual({ average: 600, best: 600 })
+  })
+
+  it('distancePerTank is null when no full-to-full span exists', () => {
+    expect(distancePerTank(enrichFillUps([fillUp({ odometer_km: 100_000, litres: 40, is_full_tank: true })]))).toBeNull()
+  })
+
   it('rangeAccuracy is null with no range estimates logged', () => {
     expect(rangeAccuracy(rows)).toBeNull()
   })
@@ -223,5 +298,102 @@ describe('other metrics', () => {
     })
     expect(result).not.toBeNull()
     expect(result!.discrepancyPct).not.toBeNull()
+  })
+})
+
+describe('nextFillEstimate', () => {
+  const rows = enrichFillUps([
+    fillUp({ odometer_km: 100_000, litres: 40, filled_at: '2026-01-01T00:00:00Z' }),
+    fillUp({ odometer_km: 100_500, litres: 35, filled_at: '2026-01-11T00:00:00Z' }),
+    fillUp({ odometer_km: 101_000, litres: 35, filled_at: '2026-01-21T00:00:00Z' }),
+  ])
+
+  it('is null without a gap to learn from', () => {
+    expect(nextFillEstimate(enrichFillUps([fillUp({ odometer_km: 100_000, litres: 40 })]), new Date('2026-02-01'))).toBeNull()
+    expect(nextFillEstimate([], new Date('2026-02-01'))).toBeNull()
+  })
+
+  it('predicts the next fill from the average gap and time since the last one', () => {
+    const result = nextFillEstimate(rows, new Date('2026-01-26T00:00:00Z'))
+    expect(result).toEqual({ daysSince: 5, averageGapDays: 10, dueInDays: 5 })
+  })
+
+  it('goes negative when overdue', () => {
+    expect(nextFillEstimate(rows, new Date('2026-02-05T00:00:00Z'))!.dueInDays).toBe(-5)
+  })
+})
+
+describe('sinceLastFill litres remaining', () => {
+  it('is withheld when the last fill was only a partial top-up (tank content unknown)', () => {
+    const partial = enrichFillUps([
+      fillUp({ odometer_km: 100_000, litres: 40, filled_at: '2026-01-01T00:00:00Z' }),
+      fillUp({ odometer_km: 100_500, litres: 35, filled_at: '2026-01-11T00:00:00Z' }),
+      fillUp({ odometer_km: 100_700, litres: 15, is_full_tank: false, filled_at: '2026-01-15T00:00:00Z' }),
+    ])
+    expect(sinceLastFill(partial, new Date('2026-01-17T00:00:00Z'))!.litresRemainingEstimate).toBeNull()
+  })
+})
+
+describe('previewConsumption (live form preview)', () => {
+  const history = enrichFillUps([
+    fillUp({ odometer_km: 100_000, litres: 40, is_full_tank: true, filled_at: '2026-01-01T00:00:00Z' }),
+    fillUp({ odometer_km: 100_300, litres: 20, is_full_tank: false, filled_at: '2026-01-05T00:00:00Z' }),
+  ])
+
+  it('uses the same full-to-full span as the stored data', () => {
+    expect(previewConsumption(history, { odometer_km: 100_600, litres: 25, is_full_tank: true, missed_previous: false })).toBe(7.5)
+  })
+
+  it('is null for a partial top-up, never a made-up figure', () => {
+    expect(previewConsumption(history, { odometer_km: 100_600, litres: 25, is_full_tank: false, missed_previous: false })).toBeNull()
+  })
+
+  it('is null when there is no earlier full tank', () => {
+    expect(previewConsumption([], { odometer_km: 100_000, litres: 25, is_full_tank: true, missed_previous: false })).toBeNull()
+  })
+
+  it('ignores the fill being edited so it is not counted against itself', () => {
+    const withEdited = enrichFillUps([
+      fillUp({ id: 'keep', odometer_km: 100_000, litres: 40, is_full_tank: true, filled_at: '2026-01-01T00:00:00Z' }),
+      fillUp({ id: 'edit', odometer_km: 100_500, litres: 30, is_full_tank: true, filled_at: '2026-01-10T00:00:00Z' }),
+    ])
+    expect(previewConsumption(withEdited, { odometer_km: 100_500, litres: 35, is_full_tank: true, missed_previous: false }, 'edit')).toBe(7)
+  })
+})
+
+describe('latestCostPer100km', () => {
+  it('uses the latest MEASURABLE fill, skipping a trailing partial top-up', () => {
+    const rows = enrichFillUps([
+      fillUp({ odometer_km: 100_000, litres: 40, total_cost: 1000, filled_at: '2026-01-01T00:00:00Z' }),
+      fillUp({ odometer_km: 100_500, litres: 30, total_cost: 780, filled_at: '2026-01-10T00:00:00Z' }),
+      fillUp({ odometer_km: 100_700, litres: 15, total_cost: 400, is_full_tank: false, filled_at: '2026-01-15T00:00:00Z' }),
+    ])
+    expect(latestCostPer100km(rows)).toBe(156) // R780 over 500 km
+  })
+
+  it('is null when no fill is measurable', () => {
+    expect(latestCostPer100km(enrichFillUps([fillUp({ odometer_km: 100_000, litres: 40, total_cost: 1000 })]))).toBeNull()
+  })
+})
+
+describe('bestWorstTank annualised claim', () => {
+  const make = (n: number) =>
+    enrichFillUps(
+      Array.from({ length: n + 1 }, (_, i) =>
+        fillUp({
+          odometer_km: 100_000 + i * 500,
+          litres: i % 2 === 0 ? 30 : 40,
+          total_cost: 800,
+          filled_at: `2026-01-${String(1 + i * 3).padStart(2, '0')}T00:00:00Z`,
+        }),
+      ),
+    )
+
+  it('withholds the R/year figure until there are enough measured tanks to trust it', () => {
+    expect(bestWorstTank(make(3))!.annualisedRandDifference).toBeNull()
+  })
+
+  it('offers it once there are five measured tanks', () => {
+    expect(bestWorstTank(make(6))!.annualisedRandDifference).not.toBeNull()
   })
 })

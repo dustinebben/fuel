@@ -8,6 +8,7 @@ import { HistoryScreen } from '../features/fillups/HistoryScreen'
 import { InsightsScreen } from '../features/insights/InsightsScreen'
 import { SettingsScreen } from '../features/settings/SettingsScreen'
 import { useTiltHighlight } from '../lib/useTiltHighlight'
+import { LoadingSkeleton } from './LoadingSkeleton'
 
 const MOTION_PREF_KEY = 'fuel:motion-effects-enabled'
 
@@ -28,7 +29,7 @@ export function AppShell() {
   }, [motionEnabled])
 
   if (vehicleLoading) {
-    return <div className="flex min-h-dvh items-center justify-center text-white/40">Loading…</div>
+    return <LoadingSkeleton />
   }
 
   if (!vehicle) {
@@ -36,13 +37,13 @@ export function AppShell() {
   }
 
   if (fillUpsLoading) {
-    return <div className="flex min-h-dvh items-center justify-center text-white/40">Loading…</div>
+    return <LoadingSkeleton />
   }
 
   return (
     <>
       {tab === 'home' && <HomeScreen vehicle={vehicle} rows={rows} />}
-      {tab === 'history' && <HistoryScreen rows={rows} vehicleId={vehicle.id} />}
+      {tab === 'history' && <HistoryScreen rows={rows} vehicle={vehicle} />}
       {tab === 'insights' && <InsightsScreen rows={rows} vehicle={vehicle} />}
       {tab === 'settings' && (
         <SettingsScreen vehicle={vehicle} rows={rows} motionEnabled={motionEnabled} onMotionEnabledChange={setMotionEnabled} />

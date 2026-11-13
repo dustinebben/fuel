@@ -1,12 +1,10 @@
 import { InsightCard, EmptyState } from '../InsightCard'
 import { CountUpNumber } from '../../../components/ui/CountUpNumber'
-import { costPer100km } from '../../../lib/metrics'
+import { latestCostPer100km } from '../../../lib/metrics'
 import type { EnrichedFillUpRow } from '../../../lib/database.types'
 
 export function CostPer100kmCard({ rows, index }: { rows: EnrichedFillUpRow[]; index?: number }) {
-  const chrono = [...rows].sort((a, b) => new Date(a.filled_at).getTime() - new Date(b.filled_at).getTime())
-  const latest = chrono[chrono.length - 1]
-  const value = latest ? costPer100km(latest) : null
+  const value = latestCostPer100km(rows)
 
   return (
     <InsightCard label="Cost per 100 km" index={index}>
