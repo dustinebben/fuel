@@ -12,7 +12,7 @@ export type PriceZone = 'inland' | 'coastal'
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       fill_ups: {
@@ -178,7 +178,7 @@ export interface Database {
         ]
       }
     }
-    Functions: Record<string, never>
+    Functions: { [_ in never]: never }
   }
 }
 
