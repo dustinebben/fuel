@@ -19,6 +19,8 @@ create policy "own fill_ups" on fill_ups
 create or replace function set_user_id()
 returns trigger
 language plpgsql
+security definer          -- the authenticated role has no access to the auth schema
+set search_path = public
 as $$
 begin
   new.user_id := coalesce(auth.uid(), new.user_id);
